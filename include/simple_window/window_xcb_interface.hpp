@@ -1,6 +1,5 @@
 #pragma once
 #include "simple_window/window_xcb.hpp"
-#include "simple_window/type_traits.hpp"
 
 #include <cstdlib>
 
@@ -31,13 +30,12 @@ namespace sw {
     private:
         void process_event(const xcb_generic_event_t* next, const xcb_generic_event_t* curr,
                            const xcb_generic_event_t* prev) {
-            using namespace detail;
             switch (curr->response_type & ~0x80) {
                 // Destroy event
                 case XCB_CLIENT_MESSAGE: {
                     if (is_close_event(curr)) {
                         set_open_flag_false();
-                        if constexpr (has_on_close<Window>::value) {
+                        if constexpr (has_on_close::value) {
                             static_cast<Window*>(this)->on_close();
                         }
                     }
@@ -50,7 +48,7 @@ namespace sw {
                     if (config_event->width != m_width || config_event->height != m_height) {
                         m_width = config_event->width;
                         m_height = config_event->height;
-                        if constexpr (has_on_resize<Window>::value) {
+                        if constexpr (has_on_resize::value) {
                             static_cast<Window*>(this)->on_resize(m_width, m_height);
                         }
                     }
@@ -59,14 +57,14 @@ namespace sw {
 
                 // Focus
                 case XCB_FOCUS_IN: {
-                    if constexpr (has_on_focus_in<Window>::value) {
+                    if constexpr (has_on_focus_in::value) {
                         static_cast<Window*>(this)->on_focus_in();
                     }
                     break;
                 }
 
                 case XCB_FOCUS_OUT: {
-                    if constexpr (has_on_focus_out<Window>::value) {
+                    if constexpr (has_on_focus_out::value) {
                         if (is_open()) {
                             static_cast<Window*>(this)->on_focus_out();
                         }
@@ -76,7 +74,7 @@ namespace sw {
 
                 // Keyboard
                 case XCB_KEY_PRESS: {
-                    if constexpr (has_on_key_down<Window>::value) {
+                    if constexpr (has_on_key_down::value) {
                         if (is_key_down_event(curr, prev)) {
                             auto key_event = reinterpret_cast<const xcb_key_press_event_t*>(curr);
                             static_cast<Window*>(this)->on_key_down(
@@ -87,7 +85,7 @@ namespace sw {
                 }
 
                 case XCB_KEY_RELEASE: {
-                    if constexpr (has_on_key_up<Window>::value) {
+                    if constexpr (has_on_key_up::value) {
                         if (is_key_up_event(curr, next)) {
                             auto key_event = reinterpret_cast<const xcb_key_release_event_t*>(curr);
                             static_cast<Window*>(this)->on_key_up(
@@ -102,31 +100,31 @@ namespace sw {
                     auto button_event = reinterpret_cast<const xcb_button_press_event_t*>(curr);
                     switch (button_event->detail) {
                         case 4: {
-                            if constexpr (has_on_mouse_scroll_v<Window>::value) {
+                            if constexpr (has_on_mouse_scroll_v::value) {
                                 static_cast<Window*>(this)->on_mouse_scroll_v(1);
                             }
                             break;
                         }
                         case 5: {
-                            if constexpr (has_on_mouse_scroll_v<Window>::value) {
+                            if constexpr (has_on_mouse_scroll_v::value) {
                                 static_cast<Window*>(this)->on_mouse_scroll_v(-1);
                             }
                             break;
                         }
                         case 6: {
-                            if constexpr (has_on_mouse_scroll_h<Window>::value) {
+                            if constexpr (has_on_mouse_scroll_h::value) {
                                 static_cast<Window*>(this)->on_mouse_scroll_h(1);
                             }
                             break;
                         }
                         case 7: {
-                            if constexpr (has_on_mouse_scroll_h<Window>::value) {
+                            if constexpr (has_on_mouse_scroll_h::value) {
                                 static_cast<Window*>(this)->on_mouse_scroll_h(-1);
                             }
                             break;
                         }
                         default: {
-                            if constexpr (has_on_mouse_button_down<Window>::value) {
+                            if constexpr (has_on_mouse_button_down::value) {
                                 static_cast<Window*>(this)->on_mouse_button_down(
                                     mousecode_to_enum(button_event->detail));
                             }
@@ -137,7 +135,7 @@ namespace sw {
                 }
 
                 case XCB_BUTTON_RELEASE: {
-                    if constexpr (has_on_mouse_button_up<Window>::value) {
+                    if constexpr (has_on_mouse_button_up::value) {
                         auto button_event =
                             reinterpret_cast<const xcb_button_release_event_t*>(curr);
 
@@ -170,16 +168,216 @@ namespace sw {
                     m_last_cursor_x = x;
                     m_last_cursor_y = y;
 
-                    if constexpr (has_on_mouse_move_pos<Window>::value) {
+                    if constexpr (has_on_mouse_move_pos::value) {
                         static_cast<Window*>(this)->on_mouse_move_pos(m_mouse_x, m_mouse_y);
                     }
 
-                    if constexpr (has_on_mouse_move_delta<Window>::value) {
+                    if constexpr (has_on_mouse_move_delta::value) {
                         static_cast<Window*>(this)->on_mouse_move_delta(dx, dy);
                     }
                     break;
                 }
             }
         }
+
+        class has_on_resize {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_resize));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        class has_on_move {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_move));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        class has_on_close {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_close));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        class has_on_focus_in {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_focus_in));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        class has_on_focus_out {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_focus_out));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        // Keyboard
+
+        class has_on_key_down {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_key_down));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        class has_on_key_up {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_key_up));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        class has_on_char {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_char));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        // Mouse
+
+        class has_on_mouse_button_down {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_mouse_button_down));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        class has_on_mouse_button_up {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_mouse_button_up));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        class has_on_mouse_scroll_v {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_mouse_scroll_v));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        class has_on_mouse_scroll_h {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_mouse_scroll_h));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        class has_on_mouse_move_pos {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_mouse_move_pos));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
+
+        class has_on_mouse_move_delta {
+        private:
+            typedef char YesType[1];
+            typedef char NoType[2];
+
+            template <typename C>
+            static YesType& test(decltype(&C::on_mouse_move_delta));
+            template <typename C>
+            static NoType& test(...);
+
+        public:
+            enum { value = sizeof(test<Window>(0)) == sizeof(YesType) };
+        };
     };
 } // namespace sw
