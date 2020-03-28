@@ -251,7 +251,7 @@ namespace sw::detail {
                                        const xcb_generic_event_t* prev) const {
         auto key_event = reinterpret_cast<const xcb_key_press_event_t*>(event);
         auto prev_event = reinterpret_cast<const xcb_key_release_event_t*>(prev);
-        return (prev && ((prev->response_type & ~0x80) == XCB_KEY_RELEASE) &&
+        return !(prev && ((prev->response_type & ~0x80) == XCB_KEY_RELEASE) &&
                 (prev_event->detail == key_event->detail) && (prev_event->time == key_event->time));
     }
 
@@ -259,9 +259,9 @@ namespace sw::detail {
                                      const xcb_generic_event_t* next) const {
         auto key_event = reinterpret_cast<const xcb_key_press_event_t*>(event);
         auto next_event = reinterpret_cast<const xcb_key_release_event_t*>(next);
-        return (!(next && ((next->response_type & ~0x80) == XCB_KEY_PRESS) &&
+        return !(next && ((next->response_type & ~0x80) == XCB_KEY_PRESS) &&
                   (next_event->detail == key_event->detail) &&
-                  (next_event->time == key_event->time)));
+                  (next_event->time == key_event->time));
     }
 
     inline xcb_intern_atom_reply_t* window_xcb::intern_atom_helper(bool only_if_exists,
