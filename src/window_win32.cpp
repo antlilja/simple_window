@@ -1,6 +1,46 @@
 #include "simple_window/window_win32.hpp"
 
 namespace sw::detail {
+    window_win32::window_win32(const char* name, uint32_t width, uint32_t height, WNDPROC proc)
+        : window_base(width, height) {
+        static const wchar_t* class_name = L"simple_window_class";
+        static bool class_exists = false;
+
+        if (!class_exists) {
+            WNDCLASS window_class = {0};
+            window_class.lpfnWndProc = proc;
+            window_class.hInstance = GetModuleHandle(NULL);
+            window_class.hCursor = LoadCursor(NULL, IDC_ARROW);
+            window_class.lpszClassName = class_name;
+
+            win32_assert(RegisterClass(&window_class));
+            class_exists = true;
+        }
+
+        if (m_width == 0 || m_height == 0) {
+            m_width = GetSystemMetrics(SM_CXSCREEN);
+            m_height = GetSystemMetrics(SM_CYSCREEN);
+        }
+
+        RECT r;
+        r.top = r.left = 0;
+        r.right = m_width;
+        r.bottom = m_height;
+
+        adjust_window_rect(&r, WS_VISIBLE | WS_OVERLAPPEDWINDOW, false, NULL);
+
+        const int32_t realWidth = r.right - r.left;
+        const int32_t realHeight = r.bottom - r.top;
+
+        m_handle = CreateWindowEx(NULL, class_name, multi_to_wide(name).c_str(),
+                                  WS_VISIBLE | WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+                                  realWidth, realHeight, NULL, NULL, GetModuleHandle(NULL), NULL);
+
+        win32_assert(m_handle);
+
+        SetWindowLongPtr(m_handle, GWLP_USERDATA, (LONG_PTR)this);
+    }
+
     window_win32::~window_win32() { DestroyWindow(m_handle); }
 
     void window_win32::set_size(uint32_t width, uint32_t height) {
@@ -78,8 +118,8 @@ namespace sw::detail {
 
         set_cursor_flag_true();
 
-        m_mouse_x = m_last_cursor_point.x = m_width / 2;
-        m_mouse_y = m_last_cursor_point.y = m_height / 2;
+        m_mouse_x = m_last_cursor_x = m_width / 2;
+        m_mouse_y = m_last_cursor_y = m_height / 2;
         set_cursor_pos(m_mouse_x, m_mouse_y, false);
     }
 
@@ -152,8 +192,8 @@ namespace sw::detail {
     }
 
     void window_win32::set_clipboard(const std::string& data) {
-            const auto alloc_size = sizeof(char) * (data.size() + 1;
-            if (auto mem = GlobalAlloc(GMEM_FIXED, alloc_size); mem) {
+        const auto alloc_size = sizeof(char) * (data.size() + 1);
+        if (auto mem = GlobalAlloc(GMEM_FIXED, alloc_size); mem) {
             const auto copy_size = sizeof(char) * data.size();
             std::memcpy((void*)mem, data.data(), copy_size);
             GlobalUnlock(mem);
@@ -162,10 +202,10 @@ namespace sw::detail {
             win32_assert(EmptyClipboard());
             win32_assert(SetClipboardData(CF_TEXT, mem));
             win32_assert(CloseClipboard());
-            }
-            else {
+        }
+        else {
             win32_assert(false);
-            }
+        }
     }
 
     std::string window_win32::get_name() const {
@@ -177,7 +217,7 @@ namespace sw::detail {
 
     void window_win32::set_name(const std::string& name) {
         auto wstr = multi_to_wide(name);
-        detail::win32_assert(SetWindowText(m_handle, wstr.c_str()));
+        win32_assert(SetWindowText(m_handle, wstr.c_str()));
     }
 
     void window_win32::poll_events() {
@@ -291,7 +331,7 @@ namespace sw::detail {
             case 0x12:
                 return ((param & 0x01000000) != 0) ? key_code::e_right_alt : key_code::e_left_alt;
             case 0x10:
-                return MapVirtualkey_code((param & 0x00ff0000) >> 16, MAPVK_VSC_TO_VK_EX) == 0xA1
+                return MapVirtualKey((param & 0x00ff0000) >> 16, MAPVK_VSC_TO_VK_EX) == 0xA1
                            ? key_code::e_right_shift
                            : key_code::e_left_shift;
             case 0x11:
@@ -302,31 +342,6 @@ namespace sw::detail {
         }
     }
 
-    void window_win32::create_window(const char* name, const std::wstring& class_name) {
-        if (m_width == 0 || m_height == 0) {
-            m_width = GetSystemMetrics(SM_CXSCREEN);
-            m_height = GetSystemMetrics(SM_CYSCREEN);
-        }
-
-        RECT r;
-        r.top = r.left = 0;
-        r.right = m_width;
-        r.bottom = m_height;
-
-        adjust_window_rect(&r, WS_VISIBLE | WS_OVERLAPPEDWINDOW, false, NULL);
-
-        const int32_t realWidth = r.right - r.left;
-        const int32_t realHeight = r.bottom - r.top;
-
-        m_handle = CreateWindowEx(NULL, class_name.c_str(), multi_to_wide(name).c_str(),
-                                  WS_VISIBLE | WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-                                  realWidth, realHeight, NULL, NULL, GetModuleHandle(NULL), NULL);
-
-        win32_assert(m_handle);
-
-        SetWindowLongPtr(m_handle, GWLP_USERDATA, (LONG_PTR)this);
-    }
-
     std::string window_win32::wide_to_multi(const std::wstring& wstr) const {
         std::string str;
 
@@ -335,9 +350,9 @@ namespace sw::detail {
                                        static_cast<int32_t>(wstr.size()), (LPSTR)str.c_str(), 0,
                                        NULL, NULL));
 
-        detail::win32_assert(WideCharToMultiByte(
-            CP_UTF8, flags, (LPWSTR)wstr.c_str(), static_cast<int32_t>(wstr.size()),
-            (LPSTR)str.c_str(), static_cast<int32_t>(str.size()), NULL, NULL));
+        win32_assert(WideCharToMultiByte(CP_UTF8, flags, (LPWSTR)wstr.c_str(),
+                                         static_cast<int32_t>(wstr.size()), (LPSTR)str.c_str(),
+                                         static_cast<int32_t>(str.size()), NULL, NULL));
         return str;
     }
 
@@ -346,9 +361,9 @@ namespace sw::detail {
         wstr.resize(MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, str.data(),
                                         static_cast<int>(str.size()), (LPWSTR)wstr.c_str(), 0));
 
-        detail::win32_assert(MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, str.data(),
-                                                 static_cast<int>(str.size()), (LPWSTR)wstr.c_str(),
-                                                 static_cast<int>(wstr.size())));
+        win32_assert(MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, str.data(),
+                                         static_cast<int>(str.size()), (LPWSTR)wstr.c_str(),
+                                         static_cast<int>(wstr.size())));
         return wstr;
     }
 

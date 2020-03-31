@@ -11,25 +11,7 @@
 namespace sw::detail {
     class window_win32 : public window_base {
     protected:
-        template <typename WindowClass>
-        window_win32(const char* name, uint32_t width, uint32_t height, WNDPROC proc)
-            : window_base(width, height) {
-            static std::wstring class_name = multi_to_wide(std::string(typeid(WindowClass).name()));
-            static bool class_exists = false;
-
-            if (!class_exists) {
-                class_name = WNDCLASS window_class = {0};
-                window_class.lpfnWndProc = proc;
-                window_class.hInstance = GetModuleHandle(NULL);
-                window_class.hCursor = LoadCursor(NULL, IDC_ARROW);
-                window_class.lpszClassName = class_name.c_str();
-
-                win32_assert(RegisterClass(&window_class));
-                class_exists = true;
-            }
-
-            create_window(name, class_name);
-        }
+        window_win32(const char* name, uint32_t width, uint32_t height, WNDPROC proc);
 
         ~window_win32();
 
@@ -60,7 +42,9 @@ namespace sw::detail {
         void set_name(const std::string& name);
 
     private:
-        void create_window(const char* name);
+        void create_window(const char* name, const std::wstring& class_name, LONG_PTR ptr);
+
+        uint32_t get_class_id() const;
 
         std::string wide_to_multi(const std::wstring& wstr) const;
 
@@ -69,7 +53,7 @@ namespace sw::detail {
         void adjust_window_rect(RECT* rect, DWORD style, bool menu, DWORD ex_style) const;
 
         template <typename ErrorCode>
-        void win32_assert(ErrorCode error_code) {
+        void win32_assert(ErrorCode error_code) const {
 #ifdef SW_DEBUG
             if (!error_code) {
                 const auto err = GetLastError();
