@@ -257,7 +257,6 @@ private:
             throw std::runtime_error("Failed to create surface");
         }
 #elif defined(_WIN32)
-        VkSurfaceKHR surface;
         VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.hinstance = m_window.get_hinstance();

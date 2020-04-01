@@ -6,10 +6,18 @@ namespace sw {
     class window_interface : public detail::window_win32 {
     protected:
         window_interface(const char* name, uint32_t width, uint32_t height)
-            : window_win32<Window>(name, width, height, window_callback) {}
+            : window_win32(name, width, height, &window_proc) {}
 
     private:
-        static LRESULT window_callback(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
+        static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
+            if (auto ptr = GetWindowLongPtr(window, GWLP_USERDATA)) {
+                auto wnd = reinterpret_cast<window_interface<Window>*>(ptr);
+                return wnd->window_callback(window, msg, wParam, lParam);
+            }
+            return DefWindowProc(window, msg, wParam, lParam);
+        }
+
+        LRESULT window_callback(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
             switch (msg) {
                 // Keyboard
                 case WM_SYSKEYDOWN:
@@ -96,8 +104,8 @@ namespace sw {
                 }
 
                 case WM_MOUSEMOVE: {
-                    const auto x = static_cast<int32_t>(GET_X_LPARAM(lParam));
-                    const auto y = static_cast<int32_t>(GET_Y_LPARAM(lParam));
+                    const auto x = static_cast<int32_t>(LOWORD(lParam));
+                    const auto y = static_cast<int32_t>(HIWORD(lParam));
                     const auto dx = x - m_last_cursor_x;
                     const auto dy = y - m_last_cursor_y;
                     m_mouse_x += dx;
@@ -134,7 +142,7 @@ namespace sw {
                 }
 
                 case WM_CLOSE: {
-                    m_open = false;
+                    set_open_flag_false();
                     if constexpr (has_on_close::value) {
                         static_cast<Window*>(this)->on_close();
                     }
@@ -150,7 +158,7 @@ namespace sw {
 
                 case WM_KILLFOCUS: {
                     if constexpr (has_on_focus_out::value) {
-                        if (m_open) {
+                        if (is_open()) {
                             static_cast<Window*>(this)->on_focus_out();
                         }
                     }
@@ -162,13 +170,13 @@ namespace sw {
         }
 
         inline void handle_mouse_down_event(const mouse_code code) {
-            if constexpr (detail::has_on_mouse_button_down::value) {
+            if constexpr (has_on_mouse_button_down::value) {
                 static_cast<Window*>(this)->on_mouse_button_down(code);
             }
         }
 
         inline void handle_mouse_up_event(const mouse_code code) {
-            if constexpr (detail::has_on_mouse_button_up::value) {
+            if constexpr (has_on_mouse_button_up::value) {
                 static_cast<Window*>(this)->on_mouse_button_up(code);
             }
         }
