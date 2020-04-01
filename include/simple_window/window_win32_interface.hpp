@@ -49,31 +49,31 @@ namespace sw {
                 }
 
                 // Mouse
-                case WM_LBUTTONDOWN: handle_mouse_down_event(mouse_code::e_left); break;
-                case WM_LBUTTONUP: handle_mouse_up_event(mouse_code::e_left); break;
+                case WM_LBUTTONDOWN: handle_mouse_down_event(mouse_code::e_left, lParam); break;
+                case WM_LBUTTONUP: handle_mouse_up_event(mouse_code::e_left, lParam); break;
 
-                case WM_MBUTTONDOWN: handle_mouse_down_event(mouse_code::e_middle); break;
-                case WM_MBUTTONUP: handle_mouse_up_event(mouse_code::e_middle); break;
+                case WM_MBUTTONDOWN: handle_mouse_down_event(mouse_code::e_middle, lParam); break;
+                case WM_MBUTTONUP: handle_mouse_up_event(mouse_code::e_middle, lParam); break;
 
-                case WM_RBUTTONDOWN: handle_mouse_down_event(mouse_code::e_right); break;
-                case WM_RBUTTONUP: handle_mouse_up_event(mouse_code::e_right); break;
+                case WM_RBUTTONDOWN: handle_mouse_down_event(mouse_code::e_right, lParam); break;
+                case WM_RBUTTONUP: handle_mouse_up_event(mouse_code::e_right, lParam); break;
 
                 case WM_XBUTTONDOWN: {
                     if (GET_XBUTTON_WPARAM(wParam) == XBUTTON1) {
-                        handle_mouse_down_event(mouse_code::e_1);
+                        handle_mouse_down_event(mouse_code::e_1, lParam);
                     }
                     else {
-                        handle_mouse_down_event(mouse_code::e_2);
+                        handle_mouse_down_event(mouse_code::e_2, lParam);
                     }
                     break;
                 }
 
                 case WM_XBUTTONUP: {
                     if (GET_XBUTTON_WPARAM(wParam) == XBUTTON1) {
-                        handle_mouse_up_event(mouse_code::e_1);
+                        handle_mouse_up_event(mouse_code::e_1, lParam);
                     }
                     else {
-                        handle_mouse_up_event(mouse_code::e_2);
+                        handle_mouse_up_event(mouse_code::e_2, lParam);
                     }
                     break;
                 }
@@ -169,15 +169,19 @@ namespace sw {
             return DefWindowProc(window, msg, wParam, lParam);
         }
 
-        inline void handle_mouse_down_event(const mouse_code code) {
+        inline void handle_mouse_down_event(const mouse_code code, LPARAM lparam) {
             if constexpr (has_on_mouse_button_down::value) {
-                static_cast<Window*>(this)->on_mouse_button_down(code);
+                const auto x = static_cast<int32_t>(LOWORD(lparam));
+                const auto y = static_cast<int32_t>(HIWORD(lparam));
+                static_cast<Window*>(this)->on_mouse_button_down(code, x, y);
             }
         }
 
-        inline void handle_mouse_up_event(const mouse_code code) {
+        inline void handle_mouse_up_event(const mouse_code code, LPARAM lparam) {
             if constexpr (has_on_mouse_button_up::value) {
-                static_cast<Window*>(this)->on_mouse_button_up(code);
+                const auto x = static_cast<int32_t>(LOWORD(lparam));
+                const auto y = static_cast<int32_t>(HIWORD(lparam));
+                static_cast<Window*>(this)->on_mouse_button_up(code, x, y);
             }
         }
 
