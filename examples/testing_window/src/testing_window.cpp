@@ -37,12 +37,13 @@ protected:
     void on_move(const int x, const int y) {
         std::cout << "Window moved: " << x << ", " << y << '\n';
     }
+    void on_mouse_button_down(sw::mouse_code code, int x, int y) {
+        if (code == sw::mouse_code::e_left) {
+            std::cout << x << ", " << y << '\n';
+        }
+    }
 
     void on_mouse_scroll_v(int delta) { std::cout << "Mouse scroll: " << delta << '\n'; }
-
-    void on_mouse_move_delta(const int32_t x, const int32_t y) {
-        std::cout << x << ", " << y << '\n';
-    }
 
     void on_resize(uint32_t width, uint32_t height) {
         std::cout << "Window resize: " << width << ", " << height << '\n';

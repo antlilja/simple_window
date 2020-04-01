@@ -126,7 +126,8 @@ namespace sw {
                         default: {
                             if constexpr (has_on_mouse_button_down::value) {
                                 static_cast<Window*>(this)->on_mouse_button_down(
-                                    mousecode_to_enum(button_event->detail));
+                                    mousecode_to_enum(button_event->detail), button_event->event_x,
+                                    button_event->event_y);
                             }
                             break;
                         }
@@ -142,7 +143,8 @@ namespace sw {
                         // Check if scroll events
                         if (button_event->detail != 4 && button_event->detail != 5) {
                             static_cast<Window*>(this)->on_mouse_button_up(
-                                mousecode_to_enum(button_event->detail));
+                                mousecode_to_enum(button_event->detail), button_event->event_x,
+                                button_event->event_y);
                         }
                     }
                     break;
