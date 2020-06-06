@@ -29,6 +29,14 @@ namespace sw::detail {
         inline void set_cursor_flag_true() { m_flags |= 0b100; }
         inline void set_cursor_flag_false() { m_flags &= 0b11111011; }
 
+        void handle_mouse_move(int new_x, int new_y) {
+            m_last_cursor_x = m_mouse_x;
+            m_last_cursor_y = m_mouse_y;
+
+            m_mouse_x = new_x;
+            m_mouse_y = new_y;
+        }
+
     private:
         // 0b1: open, 0b10: fullscreen, 0b100: cursor_locked
         uint8_t m_flags = 0b1;

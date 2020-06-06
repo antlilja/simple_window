@@ -104,21 +104,14 @@ namespace sw {
                 }
 
                 case WM_MOUSEMOVE: {
-                    const auto x = static_cast<int32_t>(LOWORD(lParam));
-                    const auto y = static_cast<int32_t>(HIWORD(lParam));
-                    const auto dx = x - m_last_cursor_x;
-                    const auto dy = y - m_last_cursor_y;
-                    m_mouse_x += dx;
-                    m_mouse_y += dy;
-                    m_last_cursor_x = x;
-                    m_last_cursor_y = y;
+                    handle_mouse_move(static_cast<int32_t>(LOWORD(lParam)), static_cast<int32_t>(HIWORD(lParam)));
 
                     if constexpr (has_on_mouse_move_pos::value) {
                         static_cast<Window*>(this)->on_mouse_move_pos(m_mouse_x, m_mouse_y);
                     }
 
                     if constexpr (has_on_mouse_move_delta::value) {
-                        static_cast<Window*>(this)->on_mouse_move_delta(dx, dy);
+                        static_cast<Window*>(this)->on_mouse_move_delta(m_mouse_x - m_last_cursor_x, m_mouse_y - m_last_cursor_y);
                     }
                     break;
                 }
